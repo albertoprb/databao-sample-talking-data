@@ -75,13 +75,50 @@ my-data-app/
 ├── .gitignore # Ensure it ignores .sqlite and .duckdb files
 └── README.md
 
-# Implementation Notes
+# Development & Release setup instructions
 
-- I want to be able to switch the visualization library at any time.
-- I want to be able to switch the voice AI API at any time.
-- The SQLlite database should be saved locally and shipped with the application. Use appdirs to get the path.
-
-# Notes for later (disregard for now)
-
-- Try https://observablehq.com/plot/ for the data visualization library.
-- Try ElevenLabs Conversational AI later as the voice AI API.
+1. Clone the repository
+2. Install [Bun](https://bun.sh/) (for JavaScript package management and running scripts)
+   ```sh
+   curl -fsSL https://bun.sh/install | bash
+   ```
+3. Install [uv](https://github.com/astral-sh/uv) (for Python package management, much faster than pip)
+   ```sh
+   curl -Ls https://astral.sh/uv/install.sh | sh
+   ```
+   Install Python 3.12 via uv (needed for dev headers)
+   ```sh
+   uv python install 3.12
+   ```
+4. Install Tauri dependencies
+   ```sh
+   sudo apt update
+   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf ccache
+   ```
+   Install Rust
+   ```sh
+   curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+   ```
+5. Install Python dependencies
+   ```sh
+   uv sync
+   ```
+6. Install JavaScript dependencies
+   ```sh
+   bun install
+   ```
+7. Run on dev mode
+   ```sh
+   cd backend && uv run dev
+   cd frontend && bun tauri dev
+   ```
+8. Release
+   - Build the backend sidecar
+   ```sh
+   cd backend && uv run build-sidecar
+   ```
+   - Build the Tauri application
+   ```sh
+   cd frontend && bun tauri build
+   ```
+   The application delivery will be in the `frontend/target/release/bundle` directory.
