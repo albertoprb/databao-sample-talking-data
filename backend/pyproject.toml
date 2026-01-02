@@ -21,6 +21,8 @@ dependencies = [
     "pydantic",
     "nuitka",
     "ordered-set",
+    "numpy",
+    "pandas",
 ]
 
 [project.scripts]
@@ -50,4 +52,6 @@ indent-style = "space"
 [dependency-groups]
 dev = [
     "ruff>=0.14.10",
+    "ipykernel>=6.29.0",
+    "jupyter>=1.0.0",
 ]

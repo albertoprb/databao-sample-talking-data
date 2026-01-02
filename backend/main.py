@@ -1,48 +1,29 @@
+"""Entry points for the Talking Data backend."""
+
 import argparse
 
 import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from app import config
+from app.main import app
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, you should restrict this
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/")
-async def root():
-    return {"message": "Hello from FastAPI sidecar!"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
-@app.get("/greet")
-async def greet(name: str = "World"):
-    return {"message": f"Hello, {name}! Welcome from FastAPI!"}
+__all__ = ["app"]
 
 
 def main():
     """Production entry point (used by sidecar)."""
     parser = argparse.ArgumentParser(description="Talking Data Backend Sidecar")
-    parser.add_argument("--port", type=int, default=8808, help="Port to run the server on")
+    parser.add_argument(
+        "--port", type=int, default=config.DEFAULT_PORT, help="Port to run the server on"
+    )
     args = parser.parse_args()
 
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    uvicorn.run(app, host=config.DEFAULT_HOST, port=args.port)
 
 
 def dev():
     """Development entry point with hot reload."""
-    uvicorn.run("main:app", host="127.0.0.1", port=8808, reload=True)
+    uvicorn.run("app.main:app", host=config.DEFAULT_HOST, port=config.DEFAULT_PORT, reload=True)
 
 
 if __name__ == "__main__":
