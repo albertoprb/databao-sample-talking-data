@@ -19,10 +19,13 @@ dependencies = [
     "sqlalchemy",
     "python-multipart",
     "pydantic",
+    "python-dotenv>=1.0.0",
     "nuitka",
     "ordered-set",
     "numpy",
     "pandas",
+    "google-genai>=1.0.0",
+    "deepgram-sdk>=3.0.0",
 ]
 
 [project.scripts]

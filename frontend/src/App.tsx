@@ -5,6 +5,7 @@ import { FileDropZone, type DroppedFile } from "@/components/FileDropZone";
 import { MicButton } from "@/components/MicButton";
 import { ScanningAnimation } from "@/components/ScanningAnimation";
 import { DataAnalysisResults } from "@/components/DataAnalysisResults";
+import { VoiceQueryList } from "@/components/VoiceQueryResult";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -14,7 +15,9 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useDataAnalysis } from "@/hooks/useDataAnalysis";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { cn } from "@/lib/utils";
+import type { VoiceQuery } from "@/types/voice";
 
 type AppState = "idle" | "scanning" | "analyzing" | "results";
 
@@ -27,11 +30,55 @@ function App() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [currentFileName, setCurrentFileName] = useState<string>("");
   const [currentFilePath, setCurrentFilePath] = useState<string>("");
-  const [isListening, setIsListening] = useState(false);
+  const [voiceQueries, setVoiceQueries] = useState<VoiceQuery[]>([]);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const { analysis, isAnalyzing, analyzeFile, resetAnalysis } =
     useDataAnalysis();
+
+  // Voice recording hook
+  const {
+    isRecording,
+    isProcessing: isTranscribing,
+    permissionStatus,
+    startRecording,
+    stopRecording,
+  } = useVoiceRecording({
+    onTranscriptionComplete: (result) => {
+      // Update the pending query with the result
+      setVoiceQueries((prev) =>
+        prev.map((q) =>
+          q.status === "processing"
+            ? {
+                ...q,
+                transcript: result.transcript,
+                curated_prompt: result.curated_prompt,
+                status: "complete" as const,
+              }
+            : q
+        )
+      );
+      toast.success("Transcription complete");
+    },
+    onError: (error) => {
+      // Update the pending query with the error
+      setVoiceQueries((prev) =>
+        prev.map((q) =>
+          q.status === "processing"
+            ? { ...q, status: "error" as const, error }
+            : q
+        )
+      );
+      toast.error("Voice error", { description: error });
+    },
+  });
+
+  // Show recording status
+  useEffect(() => {
+    if (isRecording) {
+      toast.info("Listening...", { description: "Release to stop" });
+    }
+  }, [isRecording]);
 
   // Update app state based on analysis progress
   useEffect(() => {
@@ -94,7 +141,7 @@ function App() {
     }
   }, [currentFilePath, analyzeFile, resetAnalysis]);
 
-  const handleMicHoldStart = useCallback(() => {
+  const handleMicHoldStart = useCallback(async () => {
     if (appState !== "results") {
       toast.error("Please load data first", {
         description: "Drop a file to start analyzing",
@@ -102,22 +149,48 @@ function App() {
       return;
     }
 
-    setIsListening(true);
-    toast.info("Listening...", {
-      description: "Release to stop",
-    });
-  }, [appState]);
-
-  const handleMicHoldEnd = useCallback(() => {
-    if (isListening) {
-      setIsListening(false);
-      toast.info("Voice input coming soon", {
-        description: "This feature is under development",
+    // Check if permission was previously denied
+    if (permissionStatus === "denied") {
+      toast.error("Microphone access denied", {
+        description:
+          "Please allow microphone access in your system settings and restart the app.",
       });
+      return;
     }
-  }, [isListening]);
+
+    if (permissionStatus === "unsupported") {
+      toast.error("Microphone not supported", {
+        description: "Your browser doesn't support microphone access.",
+      });
+      return;
+    }
+
+    await startRecording();
+    // Note: startRecording handles errors internally via the onError callback
+  }, [appState, permissionStatus, startRecording]);
+
+  const handleMicHoldEnd = useCallback(async () => {
+    if (isRecording) {
+      // Create a pending voice query
+      const newQuery: VoiceQuery = {
+        id: crypto.randomUUID(),
+        timestamp: new Date(),
+        transcript: "",
+        curated_prompt: "",
+        status: "processing",
+      };
+      setVoiceQueries((prev) => [newQuery, ...prev]);
+
+      toast.info("Processing voice...", {
+        description: "Transcribing your query",
+      });
+
+      await stopRecording();
+    }
+  }, [isRecording, stopRecording]);
 
   const isProcessing = appState === "scanning" || appState === "analyzing";
+  const isMicDisabled = isProcessing || isTranscribing;
 
   // Get current scanning stage for animation
   const getScanningStage = () => {
@@ -276,6 +349,16 @@ function App() {
               )}
             </div>
 
+            {/* Voice Queries */}
+            {voiceQueries.length > 0 && (
+              <div className="max-w-5xl mx-auto mb-8">
+                <h2 className="text-lg font-semibold text-foreground mb-4">
+                  Voice Queries
+                </h2>
+                <VoiceQueryList queries={voiceQueries} />
+              </div>
+            )}
+
             {/* Results */}
             <div ref={resultsRef} className="max-w-5xl mx-auto">
               <DataAnalysisResults analysis={analysis} />
@@ -288,8 +371,8 @@ function App() {
       <MicButton
         onHoldStart={handleMicHoldStart}
         onHoldEnd={handleMicHoldEnd}
-        disabled={isProcessing}
-        isListening={isListening}
+        disabled={isMicDisabled}
+        isListening={isRecording}
       />
     </main>
   );

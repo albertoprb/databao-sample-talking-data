@@ -8,6 +8,16 @@
     "opener:default",
     "shell:allow-spawn",
     "shell:allow-execute",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "fs:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [
+        { "path": "$APPDATA/**" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP/**" }
+      ]
+    },
+    "mic-recorder:default"
   ]
 }
